@@ -1,0 +1,200 @@
+.\" Man page for opccheck
+.\" Contact: https://github.com/opccheck/opccheck
+.\"
+.TH OPCCHECK 1 "January 2024" "opccheck 1.0.0" "User Commands"
+.SH NAME
+opccheck \- OPC-DA security checker for industrial control systems
+.SH SYNOPSIS
+.B opccheck
+[\fIOPTIONS\fR] \fITARGET\fR
+.SH DESCRIPTION
+.B opccheck
+is a command-line tool for security assessment of OPC-DA (OLE for Process Control \- Data Access) servers.
+It performs various security checks including DCOM connectivity tests, authentication verification, and browsing capability assessment.
+.PP
+OPC-DA is widely used in industrial control systems (ICS), SCADA systems, and manufacturing environments.
+This tool helps identify security misconfigurations that could expose industrial systems to unauthorized access.
+.PP
+The tool is designed to work on Linux and macOS systems, implementing DCOM/RPC protocol handling without requiring Windows dependencies.
+.SH OPTIONS
+.SS "Target Specification"
+.TP
+.I TARGET
+The target OPC-DA server specified as a hostname, DNS name, or IP address.
+.SS "Port Scanning Options"
+.TP
+.B \-\-scan\-ports
+Scan for accessible DCOM ports. This is enabled by default.
+.TP
+.B \-\-no\-port\-scan
+Disable port scanning.
+.TP
+.BI \-\-port\-range " START-END"
+Specify a custom port range to scan (e.g., 49152-49200).
+.TP
+.B \-\-common\-ports\-only
+Only scan commonly used DCOM ports. This is the default behavior.
+.TP
+.BI \-p " PORT" "\fR,\fP \-\-port " PORT
+Check a specific port only.
+.SS "Security Check Options"
+.TP
+.B \-\-check\-auth
+Check authentication requirements for OPC-DA connections. Enabled by default.
+.TP
+.B \-\-check\-browse
+Check if OPC item browsing is possible. Enabled by default.
+.TP
+.B \-\-check\-activation
+Check if DCOM remote activation is enabled. Enabled by default.
+.SS "Output Options"
+.TP
+.BR \-v ", " \-\-verbose
+Enable verbose output with detailed information about each check.
+.TP
+.BR \-q ", " \-\-quiet
+Quiet mode \- only display security findings.
+.TP
+.B \-\-json
+Output results in JSON format for integration with other tools.
+.TP
+.BI \-o " FILE" "\fR,\fP \-\-output " FILE
+Write results to the specified file in JSON format.
+.SS "Connection Options"
+.TP
+.BI \-t " SECONDS" "\fR,\fP \-\-timeout " SECONDS
+Set connection timeout in seconds. Default is 5 seconds.
+.SS "General Options"
+.TP
+.BR \-V ", " \-\-version
+Display version information and exit.
+.TP
+.BR \-h ", " \-\-help
+Display help message and exit.
+.SH SECURITY CHECKS
+.B opccheck
+performs the following security assessments:
+.SS "1. DCOM Port Accessibility"
+Scans for accessible DCOM ports including:
+.IP \(bu 2
+Port 135 (RPC Endpoint Mapper)
+.IP \(bu 2
+Port 139 (NetBIOS)
+.IP \(bu 2
+Port 445 (SMB)
+.IP \(bu 2
+Port 593 (HTTP RPC Endpoint Mapper)
+.IP \(bu 2
+Legacy dynamic ports (1024-1030)
+.IP \(bu 2
+Modern dynamic ports (49152-49160)
+.SS "2. RPC Endpoint Mapper"
+Verifies if the RPC Endpoint Mapper is accessible, which can reveal information about available DCOM services.
+.SS "3. OPC-DA Authentication"
+Tests whether the OPC-DA server allows unauthenticated or anonymous connections.
+.SS "4. OPC Item Browsing"
+Checks if clients can browse OPC items through the IOPCBrowseServerAddressSpace interface.
+.SS "5. DCOM Remote Activation"
+Determines if DCOM remote activation is enabled via the OXID Resolver and IRemUnknown interfaces.
+.SS "6. OPC Server Enumeration"
+Tests accessibility of the IOPCServerList interface for enumerating OPC servers.
+.SH SEVERITY LEVELS
+Results are classified by severity:
+.TP
+.B CRITICAL
+Issues requiring immediate attention. Anonymous access or critical misconfigurations.
+.TP
+.B HIGH
+Significant security concerns that should be addressed promptly.
+.TP
+.B MEDIUM
+Moderate security issues that increase attack surface.
+.TP
+.B LOW
+Minor security concerns or best practice violations.
+.TP
+.B INFO
+Informational findings with no direct security impact.
+.SH EXIT STATUS
+.TP
+.B 0
+No critical or high severity issues found.
+.TP
+.B 1
+High severity issues found.
+.TP
+.B 2
+Critical severity issues found.
+.TP
+.B 130
+Operation interrupted by user (Ctrl+C).
+.SH EXAMPLES
+.TP
+Basic security check:
+.B opccheck 192.168.1.100
+.TP
+Verbose check with DNS hostname:
+.B opccheck opcserver.example.com \-v
+.TP
+Extended port scan with custom range:
+.B opccheck 10.0.0.50 \-\-port\-range 49152-49200
+.TP
+Skip port scanning:
+.B opccheck 192.168.1.100 \-\-no\-port\-scan
+.TP
+Extended timeout for slow networks:
+.B opccheck server.local \-\-timeout 10
+.TP
+JSON output:
+.B opccheck 192.168.1.100 \-\-json
+.TP
+Save results to file:
+.B opccheck 192.168.1.100 \-o results.json
+.TP
+Check specific port:
+.B opccheck 192.168.1.100 \-p 135
+.SH FILES
+.TP
+.I /usr/local/bin/opccheck
+Default installation location.
+.TP
+.I ~/.opccheck/config
+User configuration file (optional, not yet implemented).
+.SH ENVIRONMENT
+.TP
+.B OPCCHECK_TIMEOUT
+Default timeout value in seconds. Overridden by \-\-timeout option.
+.SH SECURITY CONSIDERATIONS
+.B Important:
+This tool is intended for authorized security testing and research only.
+Always obtain proper authorization before testing systems you do not own.
+.PP
+Recommended use cases include:
+.IP \(bu 2
+Security assessments of industrial control systems
+.IP \(bu 2
+Authorized penetration testing of OPC infrastructure
+.IP \(bu 2
+Compliance verification for OPC-DA deployments
+.IP \(bu 2
+Network security audits
+.IP \(bu 2
+Vulnerability assessments
+.SH BUGS
+Report bugs at: https://github.com/opccheck/opccheck/issues
+.SH AUTHOR
+OPCCheck Security Tool Team
+.SH SEE ALSO
+.BR nmap (1),
+.BR rpcclient (1),
+.BR dcomexec.py (1)
+.PP
+OPC Foundation: https://opcfoundation.org/
+.PP
+Microsoft DCOM Documentation: https://docs.microsoft.com/en-us/windows/win32/com/
+.SH COPYRIGHT
+Copyright \(co 2024 OPCCheck Team.
+License: MIT
+.PP
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.

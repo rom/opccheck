@@ -1,0 +1,18 @@
+# OPCCheck - OPC-DA Security Checker
+# Core dependencies (minimal - uses standard library)
+
+# No external dependencies required for basic functionality.
+# The tool uses only Python standard library modules:
+# - socket
+# - struct
+# - argparse
+# - uuid
+# - ssl
+# - time
+# - dataclasses
+# - enum
+# - typing
+# - json
+
+# Optional dependencies for extended functionality:
+# impacket>=0.10.0  # For advanced DCOM/RPC operations (optional)
