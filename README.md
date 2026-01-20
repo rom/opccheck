@@ -1,16 +1,51 @@
 # OPCCheck - OPC-DA Security Checker
 
-A command-line tool for security assessment of OPC-DA (OLE for Process Control - Data Access) servers. This tool performs various security checks including DCOM connectivity tests, authentication verification, and browsing capability assessment.
+A comprehensive command-line tool for security assessment of OPC-DA (OLE for Process Control - Data Access) servers and related industrial protocols. This tool performs extensive security checks including DCOM connectivity tests, OPC interface accessibility verification, authentication testing, and more.
 
 ## Features
 
+### Core OPC-DA Security Checks
 - **DCOM Port Scanning**: Test dynamic ports to identify accessible DCOM endpoints
 - **Authentication Checks**: Verify if OPC-DA connections can be performed without authentication
 - **OPC Item Browsing**: Check if clients can browse OPC items and whether restrictions are in place
 - **Remote Activation Detection**: Determine if DCOM remote activation is enabled
 - **OPC Server Enumeration**: Check if the IOPCServerList interface is accessible
-- **Cross-Platform**: Works on Linux and macOS (no Windows dependencies)
-- **JSON Output**: Export results in JSON format for integration with other tools
+- **OPC-DA Version Detection**: Detect supported OPC-DA versions (1.0, 2.0, 3.0)
+
+### Extended OPC-DA Interface Checks
+- **Synchronous I/O (IOPCSyncIO)**: Check direct read/write operation access
+- **Asynchronous I/O (IOPCAsyncIO2/3)**: Check async read/write operation access
+- **Item Management (IOPCItemMgt)**: Check ability to add/remove OPC items
+- **Group Management (IOPCGroupStateMgt)**: Check OPC group manipulation access
+- **Item Properties (IOPCItemProperties)**: Check item metadata access
+- **Data Callback (IOPCDataCallback)**: Check data subscription capabilities
+- **Item Deadband Management**: Check deadband configuration access
+- **Public Groups**: Check shared OPC group access
+
+### OPC Security Specification Checks
+- **IOPCSecurityNT**: Windows authentication integration
+- **IOPCSecurityPrivate**: Custom authentication mechanisms
+
+### Additional OPC Specifications (Optional)
+- **OPC-HDA (Historical Data Access)**: Historical data read/write capabilities
+- **OPC-AE (Alarms & Events)**: Event subscription and browsing
+- **OPC Batch**: Batch process control interfaces
+- **OPC-DX**: Data exchange interfaces
+- **OPC Commands**: Command execution interfaces
+
+### Windows/DCOM Security Checks
+- **Null Session Access**: Check anonymous access to Windows services
+- **WMI over DCOM**: Remote Windows management access
+- **SAM-R Protocol**: User enumeration capabilities
+- **LSA Protocol**: Security policy access
+- **Server Service (SRVSVC)**: Share enumeration
+- **Connection Limits**: Rate limiting detection
+
+### Output Formats
+- **Console Output**: Human-readable with severity levels
+- **JSON**: Structured output for automation
+- **XML**: Integration with security tools
+- **CSV**: Spreadsheet-compatible format
 
 ## Requirements
 
@@ -58,18 +93,22 @@ opccheck 192.168.1.100
 # Check an OPC-DA server by hostname
 opccheck opcserver.example.com
 
-# Check an OPC-DA server by DNS name
-opccheck opc.industrial.local
+# List all available security checks
+opccheck --list-checks
 ```
 
-### Options
+### Command Line Options
 
 ```
 usage: opccheck [-h] [--scan-ports] [--no-port-scan] [--port-range START-END]
-                [--common-ports-only] [-p PORT] [--check-auth] [--check-browse]
-                [--check-activation] [-v] [-q] [--json] [-o FILE] [-t SECONDS]
-                [-V]
-                TARGET
+                [--common-ports-only] [-p PORT] [--list-checks] [--check-all]
+                [--enable-check CHECK] [--disable-check CHECK] [--only-checks CHECKS]
+                [--check-hda] [--check-ae] [--check-batch] [--check-windows]
+                [-v] [-q] [--json] [--xml] [--csv] [-o FILE]
+                [--min-severity {INFO,LOW,MEDIUM,HIGH,CRITICAL}] [--no-color]
+                [--show-passed] [--hide-passed] [-t SECONDS] [--retry COUNT]
+                [--delay SECONDS] [--source-ip IP] [-V]
+                [TARGET]
 
 positional arguments:
   TARGET                Target OPC-DA server (hostname, DNS name, or IP address)
@@ -82,19 +121,36 @@ Port Scanning Options:
   --common-ports-only   Only scan commonly used DCOM ports (default)
   -p, --port PORT       Check a specific port only
 
-Security Check Options:
-  --check-auth          Check authentication requirements (default: enabled)
-  --check-browse        Check OPC item browsing capability (default: enabled)
-  --check-activation    Check DCOM remote activation (default: enabled)
+Check Selection Options:
+  --list-checks         List all available security checks and exit
+  --check-all           Enable all security checks including optional ones
+  --enable-check CHECK  Enable a specific check (can be used multiple times)
+  --disable-check CHECK Disable a specific check (can be used multiple times)
+  --only-checks CHECKS  Run only specified checks (comma-separated list)
+
+OPC-Specific Options:
+  --check-hda           Enable OPC-HDA (Historical Data Access) checks
+  --check-ae            Enable OPC-AE (Alarms & Events) checks
+  --check-batch         Enable OPC Batch interface checks
+  --check-windows       Enable Windows service checks (WMI, SAMR, etc.)
 
 Output Options:
-  -v, --verbose         Enable verbose output
-  -q, --quiet           Quiet mode - only show findings
+  -v, --verbose         Enable verbose output with detailed information
+  -q, --quiet           Quiet mode - only show security findings
   --json                Output results in JSON format
+  --xml                 Output results in XML format
+  --csv                 Output results in CSV format
   -o, --output FILE     Write results to file
+  --min-severity LEVEL  Minimum severity level to display (default: INFO)
+  --no-color            Disable colored output
+  --show-passed         Show passed checks in output (default: enabled)
+  --hide-passed         Hide passed checks, only show findings
 
 Connection Options:
   -t, --timeout SECONDS Connection timeout in seconds (default: 5)
+  --retry COUNT         Number of retries for failed connections (default: 1)
+  --delay SECONDS       Delay between checks in seconds (default: 0)
+  --source-ip IP        Source IP address to use for connections
 
 General Options:
   -V, --version         Show version number and exit
@@ -110,24 +166,106 @@ opccheck 192.168.1.100
 # Verbose check against a DNS hostname
 opccheck opcserver.example.com -v
 
+# Run all available checks including optional ones
+opccheck 10.0.0.50 --check-all
+
+# Enable specific additional checks
+opccheck 192.168.1.100 --enable-check opc_hda --enable-check opc_ae
+
+# Disable specific checks
+opccheck 192.168.1.100 --disable-check null_session
+
 # Extended port scanning with custom range
 opccheck 10.0.0.50 --port-range 49152-49200
 
 # Skip port scanning, only check security settings
 opccheck 192.168.1.100 --no-port-scan
 
-# Check with extended timeout for slow networks
-opccheck server.local --timeout 10
+# Check with extended timeout and retries for slow networks
+opccheck server.local --timeout 10 --retry 3
 
-# Output results to JSON
-opccheck 192.168.1.100 --json
+# Output results to JSON file
+opccheck 192.168.1.100 --json -o results.json
 
-# Save results to a file
-opccheck 192.168.1.100 -o results.json
+# Only show HIGH and CRITICAL findings
+opccheck 192.168.1.100 --min-severity HIGH
+
+# Show only security findings (no passed checks)
+opccheck 192.168.1.100 --hide-passed
 
 # Check a specific port
 opccheck 192.168.1.100 -p 135
+
+# Enable OPC-HDA and OPC-AE checks
+opccheck 192.168.1.100 --check-hda --check-ae
+
+# Enable Windows service enumeration checks
+opccheck 192.168.1.100 --check-windows
+
+# List all available checks
+opccheck --list-checks
 ```
+
+## Available Security Checks
+
+Run `opccheck --list-checks` to see all available checks. The checks are organized by category:
+
+### Network & Ports
+| Check ID | Name | Default |
+|----------|------|---------|
+| dcom_ports | DCOM Port Accessibility | Yes |
+| endpoint_mapper | RPC Endpoint Mapper | Yes |
+| smb_signing | SMB Signing | No |
+| connection_limits | Connection Limits | No |
+
+### Authentication
+| Check ID | Name | Default |
+|----------|------|---------|
+| authentication | OPC-DA Authentication | Yes |
+| ntlm_auth | NTLM Authentication | Yes |
+| null_session | Null Session Access | Yes |
+
+### OPC-DA Interfaces
+| Check ID | Name | Default |
+|----------|------|---------|
+| browsing | OPC Item Browsing | Yes |
+| server_enumeration | OPC Server Enumeration | Yes |
+| da_version | OPC-DA Version Detection | Yes |
+| sync_io | Synchronous I/O Access | Yes |
+| async_io | Asynchronous I/O Access | Yes |
+| item_management | Item Management Access | Yes |
+| group_management | Group Management Access | Yes |
+| item_properties | Item Properties Access | Yes |
+| callback_interface | Data Callback Interface | Yes |
+| item_deadband | Item Deadband Management | No |
+| public_groups | Public Groups Access | No |
+
+### DCOM Services
+| Check ID | Name | Default |
+|----------|------|---------|
+| remote_activation | DCOM Remote Activation | Yes |
+
+### Security Interfaces
+| Check ID | Name | Default |
+|----------|------|---------|
+| opc_security | OPC Security Interface | Yes |
+
+### Other OPC Specifications
+| Check ID | Name | Default |
+|----------|------|---------|
+| opc_hda | OPC-HDA Interface | No |
+| opc_ae | OPC-AE Interface | No |
+| opc_batch | OPC Batch Interface | No |
+| opc_dx | OPC-DX Interface | No |
+| opc_commands | OPC Commands Interface | No |
+
+### Windows Services
+| Check ID | Name | Default |
+|----------|------|---------|
+| wmi_dcom | WMI over DCOM | No |
+| samr_access | SAM-R Protocol Access | No |
+| lsa_access | LSA Protocol Access | No |
+| srvsvc_access | Server Service Access | No |
 
 ## Security Checks Performed
 
@@ -169,6 +307,47 @@ Checks if DCOM remote activation is enabled:
 
 Checks if the IOPCServerList interface is accessible, which allows clients to enumerate available OPC servers on the target system.
 
+### 7. OPC-DA Version Detection
+
+Probes version-specific interfaces to detect supported OPC-DA versions:
+- DA 1.0: IOPCAsyncIO interface
+- DA 2.0: IOPCAsyncIO2 interface
+- DA 3.0: IOPCAsyncIO3 and IOPCBrowse interfaces
+
+### 8. Synchronous/Asynchronous I/O Access
+
+Checks if read/write operation interfaces are accessible:
+- IOPCSyncIO (direct synchronous operations)
+- IOPCAsyncIO2 (asynchronous operations with callbacks)
+
+### 9. OPC Security Interface
+
+Checks for OPC Security specification compliance:
+- IOPCSecurityNT (Windows authentication integration)
+- IOPCSecurityPrivate (custom authentication)
+
+### 10. OPC-HDA Interface (Optional)
+
+Checks for Historical Data Access interfaces:
+- IOPCHDA_Server (server interface)
+- IOPCHDA_Browser (historical data browsing)
+- IOPCHDA_SyncRead (read historical data)
+- IOPCHDA_SyncUpdate (write/modify historical data - HIGH severity if accessible)
+
+### 11. OPC-AE Interface (Optional)
+
+Checks for Alarms & Events interfaces:
+- IOPCEventServer (event server)
+- IOPCEventSubscriptionMgt (event subscriptions)
+- IOPCEventAreaBrowser (area browsing)
+
+### 12. Null Session Access
+
+Checks if anonymous access is allowed to Windows services:
+- SAMR (user enumeration)
+- LSA (security policies)
+- SRVSVC (share enumeration)
+
 ## Output Format
 
 ### Console Output
@@ -187,7 +366,10 @@ When using `--json`, results are formatted as:
 ```json
 {
   "target": "192.168.1.100",
+  "resolved_ip": "192.168.1.100",
   "timestamp": "2024-01-15T10:30:00Z",
+  "version": "2.0.0",
+  "checks_enabled": 18,
   "results": [
     {
       "check_name": "DCOM Port Accessibility",
@@ -200,6 +382,24 @@ When using `--json`, results are formatted as:
     }
   ]
 }
+```
+
+### XML Output
+
+When using `--xml`:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<opccheck_report target="192.168.1.100" resolved_ip="192.168.1.100" timestamp="2024-01-15T10:30:00Z">
+  <results>
+    <check name="DCOM Port Accessibility" status="fail" severity="HIGH">
+      <message>Found 2 accessible DCOM port(s)</message>
+      <details>
+        <ports>[135, 49152]</ports>
+      </details>
+    </check>
+  </results>
+</opccheck_report>
 ```
 
 ## Exit Codes
@@ -245,6 +445,8 @@ OPC-DA (OLE for Process Control - Data Access) is a specification for industrial
 2. **Unrestricted Browsing**: Clients can often enumerate all available data items
 3. **Remote Activation**: DCOM remote activation may be enabled unnecessarily
 4. **Exposed Ports**: DCOM uses dynamic ports that may be exposed to untrusted networks
+5. **Historical Data Access**: OPC-HDA interfaces may allow reading or modifying historical process data
+6. **Null Session Vulnerabilities**: Windows services may be accessible without authentication
 
 ### Mitigation Recommendations
 
@@ -254,6 +456,8 @@ OPC-DA (OLE for Process Control - Data Access) is a specification for industrial
 - Disable unnecessary interfaces and features
 - Implement network segmentation for OT networks
 - Consider OPC UA as a more secure alternative
+- Implement the OPC Security specification
+- Disable null session access on Windows systems
 
 ## Troubleshooting
 
@@ -261,7 +465,7 @@ OPC-DA (OLE for Process Control - Data Access) is a specification for industrial
 
 If you experience connection timeouts:
 ```bash
-opccheck target --timeout 15
+opccheck target --timeout 15 --retry 3
 ```
 
 ### Name Resolution Failures
@@ -282,6 +486,17 @@ Some scans may require elevated privileges for raw socket operations:
 sudo opccheck target
 ```
 
+### Too Many Checks
+
+To run only specific checks:
+```bash
+# Run only authentication and browsing checks
+opccheck target --only-checks authentication,browsing
+
+# Disable slow checks
+opccheck target --disable-check connection_limits
+```
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit pull requests.
@@ -300,9 +515,35 @@ MIT License - see LICENSE file for details.
 
 This tool is provided for educational and authorized testing purposes only. The authors are not responsible for any misuse or damage caused by this tool. Always obtain proper authorization before testing systems.
 
+## Changelog
+
+### Version 2.0.0
+
+- Added 20+ new security checks for OPC-DA interfaces
+- Added OPC-HDA (Historical Data Access) checks
+- Added OPC-AE (Alarms & Events) checks
+- Added OPC Batch interface checks
+- Added Windows service enumeration checks (WMI, SAMR, LSA, SRVSVC)
+- Added OPC-DA version detection (1.0, 2.0, 3.0)
+- Added check selection options (--enable-check, --disable-check, --only-checks)
+- Added --check-all option for comprehensive testing
+- Added --list-checks to display available checks
+- Added XML and CSV output formats
+- Added --min-severity filtering
+- Added --hide-passed option
+- Added --retry and --delay connection options
+- Improved OPC Security specification compliance checking
+- Enhanced documentation
+
+### Version 1.0.0
+
+- Initial release with core OPC-DA security checks
+
 ## References
 
 - [OPC Foundation](https://opcfoundation.org/)
+- [OPC-DA Specification](https://opcfoundation.org/developer-tools/specifications-classic/data-access/)
+- [OPC Security Specification](https://opcfoundation.org/developer-tools/specifications-classic/opc-security/)
 - [Microsoft DCOM Documentation](https://docs.microsoft.com/en-us/windows/win32/com/component-object-model--com--portal)
 - [ICS-CERT OPC Security Guidelines](https://www.cisa.gov/uscert/ics)
 - [OWASP Testing Guide](https://owasp.org/www-project-web-security-testing-guide/)
